@@ -33,6 +33,7 @@ spec:
         networking.gardener.cloud/to-dns: allowed
         networking.gardener.cloud/to-public-networks: allowed
         networking.resources.gardener.cloud/to-kube-apiserver-tcp-443: allowed
+        networking.gardener.cloud/to-apiserver: allowed
     spec:
       automountServiceAccountToken: false
       priorityClassName: gardener-system-300
@@ -90,7 +91,7 @@ spec:
         args:
         - --csi-address=$(ADDRESS)
         - --kubeconfig=/var/run/secrets/gardener.cloud/shoot/generic-kubeconfig/kubeconfig
-        - --feature-gates=Topology=true
+        - --feature-gates=Topology=false
         - --volume-name-prefix=pv-
         - --default-fstype=ext4
         - --leader-election=true

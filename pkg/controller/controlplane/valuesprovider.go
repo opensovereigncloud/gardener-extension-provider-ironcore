@@ -301,22 +301,35 @@ func (vp *valuesProvider) GetStorageClassesChartValues(
 			return nil, fmt.Errorf("could not get resize policy from volumeclass : %w", err)
 		}
 
-		storageClasses = append(storageClasses, map[string]interface{}{
+		sc := map[string]interface{}{
 			StorageClassNameKeyName:       providerConfig.StorageClasses.Default.Name,
 			StorageClassTypeKeyName:       providerConfig.StorageClasses.Default.Type,
 			StorageClassDefaultKeyName:    true,
 			StorageClassExpandableKeyName: expandable,
-		})
+		}
+
+		if providerConfig.StorageClasses.Default.PoolName != nil {
+			sc[StorageClassPoolKeyName] = *providerConfig.StorageClasses.Default.PoolName
+		}
+
+		storageClasses = append(storageClasses, sc)
 	}
 	for _, sc := range providerConfig.StorageClasses.Additional {
 		if expandable, err = isVolumeClassExpandable(ctx, ironcoreClient, &sc); err != nil {
 			return nil, fmt.Errorf("could not get resize policy from volumeclass : %w", err)
 		}
-		storageClasses = append(storageClasses, map[string]interface{}{
+
+		asc := map[string]interface{}{
 			StorageClassNameKeyName:       sc.Name,
 			StorageClassTypeKeyName:       sc.Type,
 			StorageClassExpandableKeyName: expandable,
-		})
+		}
+
+		if sc.PoolName != nil {
+			asc[StorageClassPoolKeyName] = *sc.PoolName
+		}
+
+		storageClasses = append(storageClasses, asc)
 	}
 
 	values["storageClasses"] = storageClasses

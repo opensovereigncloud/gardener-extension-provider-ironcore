@@ -144,6 +144,10 @@ func (w *workerDelegate) generateMachineClassAndSecrets() ([]*machinecontrollerv
 				ironcore.ClusterNameLabel: w.cluster.ObjectMeta.Name,
 			}
 
+			if _, exists := machineClassProviderSpec[ironcore.RootDiskFieldName]; exists {
+				machineClassProviderSpec[ironcore.RootDiskFieldName].(map[string]interface{})[ironcore.VolumePoolFieldName] = zone
+			}
+
 			machineClassProviderSpecJSON, err := json.Marshal(machineClassProviderSpec)
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to marshal machine class for machine pool %s: %w", pool.Name, err)
