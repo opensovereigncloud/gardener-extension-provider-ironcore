@@ -12,6 +12,12 @@ import (
 	"github.com/gardener/gardener/extensions/pkg/controller"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	"github.com/go-logr/logr"
+
+	api "github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/apis/ironcore"
+	"github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/apis/ironcore/helper"
+	apiv1alpha1 "github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/apis/ironcore/v1alpha1"
+	"github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/ironcore"
+
 	"github.com/ironcore-dev/ironcore/api/common/v1alpha1"
 	ipamv1alpha1 "github.com/ironcore-dev/ironcore/api/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/ironcore-dev/ironcore/api/networking/v1alpha1"
@@ -21,15 +27,12 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	api "github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/apis/ironcore"
-	"github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/apis/ironcore/helper"
-	apiv1alpha1 "github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/apis/ironcore/v1alpha1"
-	"github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/ironcore"
 )
 
 const (
-	shootPrefix = "shoot"
+	shootPrefix                 = "shoot"
+	maxAvailablePorts           = 64512
+	minPortsPerNetworkInterface = 64
 )
 
 // Reconcile implements infrastructure.Actuator.
@@ -105,6 +108,27 @@ func (a *actuator) applyPrefix(ctx context.Context, ironcoreClient client.Client
 }
 
 func (a *actuator) applyNATGateway(ctx context.Context, config *api.InfrastructureConfig, ironcoreClient client.Client, namespace string, cluster *controller.Cluster, network *networkingv1alpha1.Network) (*networkingv1alpha1.NATGateway, error) {
+	var portsPerNetworkInterface *int32
+	if nodeCIDR := cluster.Shoot.Spec.Networking.Nodes; nodeCIDR != nil {
+		_, ipv4Net, err := net.ParseCIDR(*nodeCIDR)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse node cidr %s: %w", *nodeCIDR, err)
+		}
+
+		// determines how many IP addresses reside within nodeCIDR.
+		// The first and the last IPs are NOT excluded.
+		// see reference https://github.com/cilium/cilium/blob/master/pkg/ip/ip.go#L27
+		subnet, size := ipv4Net.Mask.Size()
+		amount := big.NewInt(0).Sub(big.NewInt(2).Exp(big.NewInt(2), big.NewInt(int64(size-subnet)), nil), big.NewInt(0))
+		maxPorts := big.NewInt(maxAvailablePorts)
+		ports := big.NewInt(0).Div(maxPorts, amount)
+
+		if ports.Int64() < minPortsPerNetworkInterface {
+			portsPerNetworkInterface = ptr.To(int32(minPortsPerNetworkInterface))
+		} else {
+			portsPerNetworkInterface = ptr.To(previousPowOf2(int32(ports.Int64())))
+		}
+	}
 
 	natGateway := &networkingv1alpha1.NATGateway{
 		TypeMeta: metav1.TypeMeta{
@@ -122,6 +146,7 @@ func (a *actuator) applyNATGateway(ctx context.Context, config *api.Infrastructu
 			NetworkRef: corev1.LocalObjectReference{
 				Name: network.Name,
 			},
+			PortsPerNetworkInterface: portsPerNetworkInterface,
 		},
 	}
 
