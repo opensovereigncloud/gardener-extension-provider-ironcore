@@ -21,6 +21,12 @@ import (
 	kutil "github.com/gardener/gardener/pkg/utils/kubernetes"
 	secretutils "github.com/gardener/gardener/pkg/utils/secrets"
 	secretsmanager "github.com/gardener/gardener/pkg/utils/secrets/manager"
+
+	"github.com/ironcore-dev/gardener-extension-provider-ironcore/charts"
+	apisironcore "github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/apis/ironcore"
+	"github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/internal"
+	"github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/ironcore"
+
 	storagev1alpha1 "github.com/ironcore-dev/ironcore/api/storage/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -33,11 +39,6 @@ import (
 	autoscalingv1 "k8s.io/autoscaler/vertical-pod-autoscaler/pkg/apis/autoscaling.k8s.io/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-
-	"github.com/ironcore-dev/gardener-extension-provider-ironcore/charts"
-	apisironcore "github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/apis/ironcore"
-	"github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/internal"
-	"github.com/ironcore-dev/gardener-extension-provider-ironcore/pkg/ironcore"
 )
 
 const (
@@ -202,7 +203,8 @@ func (vp *valuesProvider) GetControlPlaneExposureChartValues(ctx context.Context
 	cp *extensionsv1alpha1.ControlPlane,
 	cluster *extensionscontroller.Cluster,
 	secretsReader secretsmanager.Reader,
-	checksums map[string]string) (map[string]interface{}, error) {
+	checksums map[string]string,
+) (map[string]interface{}, error) {
 	return map[string]interface{}{}, nil
 }
 
@@ -302,22 +304,34 @@ func (vp *valuesProvider) GetStorageClassesChartValues(
 			return nil, fmt.Errorf("could not get resize policy from volumeclass : %w", err)
 		}
 
-		storageClasses = append(storageClasses, map[string]interface{}{
+		defaultStorageClass := map[string]interface{}{
 			StorageClassNameKeyName:       providerConfig.StorageClasses.Default.Name,
 			StorageClassTypeKeyName:       providerConfig.StorageClasses.Default.Type,
 			StorageClassDefaultKeyName:    true,
 			StorageClassExpandableKeyName: expandable,
-		})
+		}
+
+		if providerConfig.StorageClasses.Default.PoolName != nil {
+			defaultStorageClass[StorageClassPoolKeyName] = *providerConfig.StorageClasses.Default.PoolName
+		}
+
+		storageClasses = append(storageClasses, defaultStorageClass)
 	}
 	for _, sc := range providerConfig.StorageClasses.Additional {
 		if expandable, err = isVolumeClassExpandable(ctx, ironcoreClient, &sc); err != nil {
 			return nil, fmt.Errorf("could not get resize policy from volumeclass : %w", err)
 		}
-		storageClasses = append(storageClasses, map[string]interface{}{
+		additionalStorageClass := map[string]interface{}{
 			StorageClassNameKeyName:       sc.Name,
 			StorageClassTypeKeyName:       sc.Type,
 			StorageClassExpandableKeyName: expandable,
-		})
+		}
+
+		if sc.PoolName != nil {
+			additionalStorageClass[StorageClassPoolKeyName] = *sc.PoolName
+		}
+
+		storageClasses = append(storageClasses, additionalStorageClass)
 	}
 
 	values["storageClasses"] = storageClasses
@@ -466,5 +480,4 @@ func (vp *valuesProvider) getControlPlaneShootChartValues(cluster *extensionscon
 		ironcore.CloudControllerManagerName: map[string]interface{}{"enabled": true},
 		ironcore.CSINodeName:                csiNodeDriverValues,
 	}, nil
-
 }
