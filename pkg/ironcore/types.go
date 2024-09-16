@@ -38,7 +38,7 @@ const (
 	AccessKeyID = "accessKeyID"
 	// SecretAccessKey is a constant for the key in a cloud provider secret and backup secret that holds the Bucket secret access key.
 	SecretAccessKey = "secretAccessKey"
-	//Endpoint
+	// Endpoint
 	Endpoint = "endpoint"
 	// UsernameFieldName is the field in a secret where the namespace is stored at.
 	UsernameFieldName = "username"
@@ -66,6 +66,8 @@ const (
 	SizeFieldName = "size"
 	// VolumeClassFieldName is the name of the volume class field
 	VolumeClassFieldName = "volumeClassName"
+	// VolumePoolFieldName is the name of the volume pool field
+	VolumePoolFieldName = "volumePoolName"
 	// ClusterNameLabel is the name is the label key of the cluster name
 	ClusterNameLabel = "extension.ironcore.dev/cluster-name"
 
@@ -103,7 +105,5 @@ const (
 	MaxAvailableNATPortsPerNetworkInterface = 64512
 )
 
-var (
-	// UsernamePrefix is a constant for the username prefix of components deployed by ironcore.
-	UsernamePrefix = extensionsv1alpha1.SchemeGroupVersion.Group + ":" + ProviderName + ":"
-)
+// UsernamePrefix is a constant for the username prefix of components deployed by ironcore.
+var UsernamePrefix = extensionsv1alpha1.SchemeGroupVersion.Group + ":" + ProviderName + ":"
