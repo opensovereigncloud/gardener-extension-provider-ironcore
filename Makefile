@@ -13,6 +13,7 @@ LEADER_ELECTION             := false
 IGNORE_OPERATION_ANNOTATION := true
 export REPO ?= ghcr.io/ironcore-dev
 export TAG ?= $(EFFECTIVE_VERSION)
+CONTAINER_TOOL ?= podman
 
 WEBHOOK_CONFIG_PORT	:= 8443
 WEBHOOK_CONFIG_MODE	:= url
@@ -83,8 +84,8 @@ docker-login:
 
 .PHONY: docker-images
 docker-images:
-	@docker build --build-arg EFFECTIVE_VERSION=$(EFFECTIVE_VERSION) -t $(IMAGE_PREFIX)/$(NAME):$(VERSION)           -t $(IMAGE_PREFIX)/$(NAME):latest           -f Dockerfile -m 6g --target $(EXTENSION_PREFIX)-$(NAME)           .
-	@docker build --build-arg EFFECTIVE_VERSION=$(EFFECTIVE_VERSION) -t $(IMAGE_PREFIX)/$(ADMISSION_NAME):$(VERSION) -t $(IMAGE_PREFIX)/$(ADMISSION_NAME):latest -f Dockerfile -m 6g --target $(EXTENSION_PREFIX)-$(ADMISSION_NAME) .
+	@$(CONTAINER_TOOL) build --build-arg EFFECTIVE_VERSION=$(EFFECTIVE_VERSION) -t $(IMAGE_PREFIX)/$(NAME):$(VERSION)           -t $(IMAGE_PREFIX)/$(NAME):latest           -f Dockerfile -m 6g --target $(EXTENSION_PREFIX)-$(NAME)           .
+	@$(CONTAINER_TOOL) build --build-arg EFFECTIVE_VERSION=$(EFFECTIVE_VERSION) -t $(IMAGE_PREFIX)/$(ADMISSION_NAME):$(VERSION) -t $(IMAGE_PREFIX)/$(ADMISSION_NAME):latest -f Dockerfile -m 6g --target $(EXTENSION_PREFIX)-$(ADMISSION_NAME) .
 
 #################################################################
 # Rules related to binary build, Docker image build and release #
